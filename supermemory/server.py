@@ -2,9 +2,10 @@
 
 from datetime import datetime
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, field_validator
 
 from supermemory.config import get_config
 from supermemory.engine import MemoryEngine
@@ -14,10 +15,29 @@ cfg = get_config()
 app = FastAPI(title="Memory Engine API")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=cfg.get("cors_origins", ["http://localhost:3333", "http://127.0.0.1:3333"]),
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "X-API-Key"],
 )
+
+
+# ── Auth middleware ──────────────────────────────────────────────────────────
+
+_api_key = cfg.get("api_key")
+
+
+@app.middleware("http")
+async def check_api_key(request: Request, call_next):
+    """Require X-API-Key header if api_key is configured."""
+    if _api_key:
+        # Skip auth for health endpoint
+        if request.url.path == "/api/health":
+            return await call_next(request)
+        key = request.headers.get("X-API-Key")
+        if key != _api_key:
+            return JSONResponse(status_code=401, content={"detail": "Invalid or missing API key"})
+    return await call_next(request)
+
 
 DB_PATH = cfg["db_path"]
 engine = MemoryEngine(db_path=DB_PATH)
@@ -32,6 +52,7 @@ def _build_embedding_cache():
     """Load all current embeddings into a numpy matrix for fast batch search."""
     conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA foreign_keys=ON")
     conn.row_factory = sqlite3.Row
     rows = conn.execute(
         """SELECT id, content, category, confidence, document_date, event_date,
@@ -91,12 +112,39 @@ class IngestRequest(BaseModel):
     agent_id: str = "user"
     document_date: str | None = None
 
+    @field_validator("text")
+    @classmethod
+    def validate_text_size(cls, v):
+        max_bytes = cfg.get("max_ingest_bytes", 51200)
+        if len(v.encode("utf-8")) > max_bytes:
+            raise ValueError(f"Ingest text exceeds maximum size of {max_bytes} bytes")
+        return v
+
 
 class SearchRequest(BaseModel):
     query: str
     top_k: int = 20
     current_only: bool = True
     as_of_date: str | None = None
+    include_source: bool = False
+
+    @field_validator("query")
+    @classmethod
+    def validate_query_length(cls, v):
+        max_len = cfg.get("max_query_length", 1024)
+        if len(v) > max_len:
+            raise ValueError(f"Query exceeds maximum length of {max_len} characters")
+        return v
+
+    @field_validator("top_k")
+    @classmethod
+    def validate_top_k(cls, v):
+        max_k = cfg.get("max_top_k", 100)
+        if v > max_k:
+            raise ValueError(f"top_k exceeds maximum of {max_k}")
+        if v < 1:
+            raise ValueError("top_k must be at least 1")
+        return v
 
 
 @app.post("/api/ingest")
@@ -118,6 +166,9 @@ async def search(req: SearchRequest):
         current_only=req.current_only,
         as_of_date=req.as_of_date,
     )
+    if not req.include_source:
+        for r in results:
+            r.pop("source_chunk", None)
     return {"results": results, "count": len(results)}
 
 

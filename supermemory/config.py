@@ -25,8 +25,13 @@ DEFAULT_CONFIG = {
     "embedding_model": "all-MiniLM-L6-v2",  # local: model name; litellm: e.g. "text-embedding-3-small", "cohere/embed-english-v3.0"
     "embedding_dim": 384,  # must match the model (e.g. 1536 for text-embedding-3-small)
     "api_port": 8642,
-    "api_host": "0.0.0.0",
+    "api_host": "127.0.0.1",
     "log_level": "info",
+    "api_key": None,  # Optional API key for authentication (X-API-Key header)
+    "cors_origins": ["http://localhost:3333", "http://127.0.0.1:3333"],  # Allowed CORS origins
+    "max_ingest_bytes": 51200,  # 50KB max ingest text size
+    "max_query_length": 1024,  # 1KB max search query
+    "max_top_k": 100,  # Max results per search
     "dedup_threshold": 0.97,
     "ingest_interval": 900,
     "skip_patterns": [],
@@ -46,6 +51,11 @@ ENV_MAP = {
     "SUPERMEMORY_LOG_LEVEL": "log_level",
     "SUPERMEMORY_DEDUP_THRESHOLD": ("dedup_threshold", float),
     "SUPERMEMORY_INGEST_INTERVAL": ("ingest_interval", int),
+    "SUPERMEMORY_API_KEY": "api_key",
+    "SUPERMEMORY_CORS_ORIGINS": "cors_origins",
+    "SUPERMEMORY_MAX_INGEST_BYTES": ("max_ingest_bytes", int),
+    "SUPERMEMORY_MAX_QUERY_LENGTH": ("max_query_length", int),
+    "SUPERMEMORY_MAX_TOP_K": ("max_top_k", int),
     # Legacy env var support
     "MEMORY_DB": "db_path",
 }
@@ -80,6 +90,10 @@ def _load_env() -> dict:
             result[mapping] = val
 
     # Handle list-type env vars
+    cors = os.environ.get("SUPERMEMORY_CORS_ORIGINS")
+    if cors:
+        result["cors_origins"] = [o.strip() for o in cors.split(",") if o.strip()]
+
     skip = os.environ.get("SUPERMEMORY_SKIP_PATTERNS")
     if skip:
         result["skip_patterns"] = [p.strip() for p in skip.split(",") if p.strip()]
@@ -164,7 +178,20 @@ def default_config_yaml() -> str:
 
 # API server settings
 # api_port: 8642
-# api_host: 0.0.0.0
+# api_host: 127.0.0.1  # Use 0.0.0.0 to expose on network (requires api_key)
+
+# API authentication (recommended if exposing on network)
+# api_key: null  # Set to require X-API-Key header on all requests
+
+# CORS allowed origins
+# cors_origins:
+#   - http://localhost:3333
+#   - http://127.0.0.1:3333
+
+# Input limits
+# max_ingest_bytes: 51200   # 50KB max ingest text
+# max_query_length: 1024    # 1KB max search query
+# max_top_k: 100            # Max search results
 
 # Logging level: debug, info, warning, error
 # log_level: info

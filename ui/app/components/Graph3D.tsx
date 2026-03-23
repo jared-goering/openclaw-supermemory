@@ -99,17 +99,17 @@ export default function Graph3D() {
     if (composer) {
       const bloom = new UnrealBloomPass(
         new THREE.Vector2(dimensions.width, dimensions.height),
-        0.8,   // strength
-        0.4,   // radius
-        0.85   // threshold
+        1.2,   // strength (higher for visibility on black)
+        0.5,   // radius
+        0.7    // threshold (lower = more things glow)
       );
       composer.addPass(bloom);
     }
     bloomAdded.current = true;
 
-    // Add subtle fog for depth
+    // Pure black scene, no fog (fog dims nodes when zoomed out)
     const scene = fg.scene();
-    scene.fog = new THREE.FogExp2(0x0a0a12, 0.003);
+    scene.background = new THREE.Color(0x000000);
 
     // Add ambient light so MeshStandard materials are visible
     const ambient = new THREE.AmbientLight(0x404060, 1.2);
@@ -161,10 +161,10 @@ export default function Graph3D() {
       const isNew = newNodeIds.has(node.id);
       const confidence = node.confidence ?? 1;
 
-      // Larger base radii for better visibility
+      // Large base radii for visibility at all zoom levels
       const baseRadius = node.isCurrent
-        ? 1.8 + confidence * 1.0
-        : 0.8 + confidence * 0.4;
+        ? 2.5 + confidence * 1.2
+        : 1.2 + confidence * 0.6;
       const radius = isSelected
         ? baseRadius * 1.5
         : isHighlighted
@@ -180,9 +180,9 @@ export default function Graph3D() {
       const material = new THREE.MeshStandardMaterial({
         color: hexToNum(color),
         emissive: hexToNum(color),
-        emissiveIntensity: isSelected ? 1.2 : isHighlighted ? 0.9 : node.isCurrent ? 0.55 : 0.12,
+        emissiveIntensity: isSelected ? 1.5 : isHighlighted ? 1.2 : node.isCurrent ? 0.8 : 0.25,
         transparent: true,
-        opacity: node.isCurrent ? 0.95 : 0.3,
+        opacity: node.isCurrent ? 1.0 : 0.5,
         roughness: 0.25,
         metalness: 0.5,
       });
@@ -191,12 +191,12 @@ export default function Graph3D() {
 
       // Soft outer glow (always on for current nodes, bigger for selected)
       if (node.isCurrent || isSelected || isHighlighted || isNew) {
-        const glowScale = isSelected ? 2.2 : isHighlighted ? 1.9 : isNew ? 2.0 : 1.6;
+        const glowScale = isSelected ? 2.5 : isHighlighted ? 2.2 : isNew ? 2.3 : 1.8;
         const glowGeo = new THREE.SphereGeometry(radius * glowScale, 16, 16);
         const glowMat = new THREE.MeshBasicMaterial({
           color: hexToNum(color),
           transparent: true,
-          opacity: isSelected ? 0.18 : isHighlighted ? 0.12 : isNew ? 0.15 : 0.06,
+          opacity: isSelected ? 0.25 : isHighlighted ? 0.18 : isNew ? 0.2 : 0.1,
         });
         const glowMesh = new THREE.Mesh(glowGeo, glowMat);
         group.add(glowMesh);
@@ -226,7 +226,7 @@ export default function Graph3D() {
         graphData={graphData}
         width={dimensions.width}
         height={dimensions.height}
-        backgroundColor="#08080f"
+        backgroundColor="#000000"
         showNavInfo={false}
         // Nodes
         nodeThreeObject={nodeThreeObject}
@@ -236,8 +236,8 @@ export default function Graph3D() {
         onBackgroundClick={() => setSelectedNodeId(null)}
         // Links
         linkColor={(link: GraphLink) => EDGE_COLORS[link.type] ?? "#6b7280"}
-        linkWidth={0.5}
-        linkOpacity={0.3}
+        linkWidth={0.8}
+        linkOpacity={0.45}
         linkDirectionalArrowLength={2.5}
         linkDirectionalArrowRelPos={1}
         linkDirectionalArrowColor={(link: GraphLink) => EDGE_COLORS[link.type] ?? "#6b7280"}

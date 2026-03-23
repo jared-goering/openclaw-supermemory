@@ -11,6 +11,8 @@ from typing import Any
 
 import numpy as np
 
+from supermemory.config import get_config
+
 
 def exact_content_dedup(db_path: str, dry_run: bool = False) -> dict[str, Any]:
     """
@@ -28,6 +30,7 @@ def exact_content_dedup(db_path: str, dry_run: bool = False) -> dict[str, Any]:
     """
     conn = sqlite3.connect(db_path, timeout=30)
     conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA foreign_keys=ON")
     conn.row_factory = sqlite3.Row
 
     result = {
@@ -244,6 +247,7 @@ def semantic_dedup(
     """
     conn = sqlite3.connect(db_path, timeout=30)
     conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA foreign_keys=ON")
     conn.row_factory = sqlite3.Row
 
     result = {"pairs_found": 0, "memories_removed": 0, "threshold": threshold, "final_stats": {}}
@@ -265,13 +269,13 @@ def semantic_dedup(
         return result
 
     # Build embedding matrix
-    EMBED_DIM = 384
-    matrix = np.empty((len(rows), EMBED_DIM), dtype=np.float32)
+    embed_dim = get_config()["embedding_dim"]
+    matrix = np.empty((len(rows), embed_dim), dtype=np.float32)
     valid = []
 
     for i, r in enumerate(rows):
         blob = r["embedding"]
-        if blob and len(blob) == EMBED_DIM * 4:
+        if blob and len(blob) == embed_dim * 4:
             matrix[i] = np.frombuffer(blob, dtype=np.float32)
             valid.append(i)
         else:
