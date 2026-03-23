@@ -10,8 +10,17 @@ from datetime import datetime
 from typing import Optional
 
 import numpy as np
-from sentence_transformers import SentenceTransformer
 import litellm
+
+# Lazy import — only loaded when using local embeddings
+SentenceTransformer = None
+
+def _get_sentence_transformer():
+    global SentenceTransformer
+    if SentenceTransformer is None:
+        from sentence_transformers import SentenceTransformer as ST
+        SentenceTransformer = ST
+    return SentenceTransformer
 
 from config import get_config
 
@@ -123,14 +132,17 @@ class MemoryEngine:
         self.model_name = model_name or cfg["model"]
         self._embedding_model = cfg["embedding_model"]
         self._embedding_dim = cfg["embedding_dim"]
+        self._embedding_provider = cfg.get("embedding_provider", "local")
         self._dedup_threshold = cfg["dedup_threshold"]
         self._embedder = None
         self._init_db()
 
     @property
     def embedder(self):
+        """Lazy-load local SentenceTransformer model (only used when embedding_provider='local')."""
         if self._embedder is None:
-            self._embedder = SentenceTransformer(self._embedding_model)
+            ST = _get_sentence_transformer()
+            self._embedder = ST(self._embedding_model)
         return self._embedder
 
     def _init_db(self):
@@ -149,10 +161,28 @@ class MemoryEngine:
     # ── Embedding helpers ────────────────────────────────────────────────
 
     def _embed(self, text: str) -> np.ndarray:
-        return self.embedder.encode(text, normalize_embeddings=True).astype(np.float32)
+        return self._embed_batch([text])[0]
 
     def _embed_batch(self, texts: list[str]) -> np.ndarray:
-        return self.embedder.encode(texts, normalize_embeddings=True).astype(np.float32)
+        if not texts:
+            return np.empty((0, self._embedding_dim), dtype=np.float32)
+
+        if self._embedding_provider == "local":
+            return self.embedder.encode(texts, normalize_embeddings=True).astype(np.float32)
+
+        # API-based embeddings via litellm (supports openai, cohere, voyage, etc.)
+        response = litellm.embedding(
+            model=self._embedding_model,
+            input=texts,
+        )
+        vecs = np.array(
+            [item["embedding"] for item in response.data],
+            dtype=np.float32,
+        )
+        # Normalize for cosine similarity
+        norms = np.linalg.norm(vecs, axis=1, keepdims=True)
+        norms = np.where(norms == 0, 1, norms)
+        return (vecs / norms).astype(np.float32)
 
     @staticmethod
     def _blob_to_vec(blob: bytes) -> np.ndarray:

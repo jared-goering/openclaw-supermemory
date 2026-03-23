@@ -134,7 +134,7 @@ def make_mock_embedder():
             if norm > 0:
                 vec = vec / norm
             vecs.append(vec)
-        return np.array(vecs) if len(vecs) > 1 else vecs[0]
+        return np.array(vecs)
 
     mock.encode = encode
     return mock
