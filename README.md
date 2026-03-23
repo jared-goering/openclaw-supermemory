@@ -1,5 +1,5 @@
 <p align="center">
-  <h1 align="center">Supermemory</h1>
+  <h1 align="center">OpenClaw Supermemory</h1>
   <p align="center">
     Local-first memory engine for AI agents.<br/>
     Atomic facts. Relational versioning. Temporal grounding. Zero cloud dependency.
@@ -7,9 +7,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/jared-goering/supermemory/actions"><img src="https://github.com/jared-goering/supermemory/actions/workflows/test.yml/badge.svg" alt="CI"></a>
-  <a href="https://pypi.org/project/supermemory/"><img src="https://img.shields.io/pypi/v/supermemory.svg" alt="PyPI"></a>
-  <a href="https://pypi.org/project/supermemory/"><img src="https://img.shields.io/pypi/pyversions/supermemory.svg" alt="Python"></a>
+  <a href="https://github.com/jared-goering/openclaw-supermemory/actions"><img src="https://github.com/jared-goering/openclaw-supermemory/actions/workflows/test.yml/badge.svg" alt="CI"></a>
+  <a href="https://pypi.org/project/openclaw-supermemory/"><img src="https://img.shields.io/pypi/v/openclaw-supermemory.svg" alt="PyPI"></a>
+  <a href="https://pypi.org/project/openclaw-supermemory/"><img src="https://img.shields.io/pypi/pyversions/openclaw-supermemory.svg" alt="Python"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
 </p>
 
@@ -42,7 +42,7 @@ The result: your agent doesn't just remember *what* was said. It knows what chan
 ## Quickstart
 
 ```bash
-pip install supermemory[local]   # includes local embeddings (no API needed for search)
+pip install openclaw-supermemory[local]   # includes local embeddings (no API needed for search)
 
 export ANTHROPIC_API_KEY=sk-ant-...   # or any litellm-supported provider
 
@@ -259,7 +259,7 @@ Database tested with 9,000+ memories, 10,000+ relations, 1,000+ entity profiles.
 ## Development
 
 ```bash
-git clone https://github.com/jared-goering/supermemory.git
+git clone https://github.com/jared-goering/openclaw-supermemory.git
 cd supermemory
 pip install -e ".[dev]"
 

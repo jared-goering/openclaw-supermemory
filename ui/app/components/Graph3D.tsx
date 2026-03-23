@@ -1,8 +1,10 @@
 "use client";
 
 import { useRef, useState, useEffect, useCallback, useMemo } from "react";
+import { motion } from "framer-motion";
 import ForceGraph3D, { type ForceGraphMethods } from "react-force-graph-3d";
 import * as THREE from "three";
+import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { useMemory } from "../context";
 import { getCategoryColor, EDGE_COLORS, type MemoryNode, type MemoryEdge } from "../types";
 
@@ -30,13 +32,13 @@ function nodeTooltip(node: GraphNode): string {
   const status = node.isCurrent ? "" : '<span style="color:#71717a;margin-left:4px">superseded</span>';
   const text = node.content.length > 120 ? node.content.slice(0, 120) + "..." : node.content;
   return `
-    <div style="background:rgba(24,24,27,0.95);border:1px solid rgba(63,63,70,0.5);border-radius:8px;padding:8px 12px;max-width:240px;backdrop-filter:blur(8px);font-family:system-ui,-apple-system,sans-serif">
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-        <span style="width:6px;height:6px;border-radius:50%;background:${color};display:inline-block"></span>
-        <span style="font-size:9px;color:#71717a;text-transform:uppercase;font-weight:600;letter-spacing:0.05em">${node.category}</span>
+    <div style="background:rgba(15,15,20,0.95);border:1px solid rgba(100,100,120,0.3);border-radius:10px;padding:10px 14px;max-width:260px;backdrop-filter:blur(12px);font-family:system-ui,-apple-system,sans-serif;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
+        <span style="width:8px;height:8px;border-radius:50%;background:${color};display:inline-block;box-shadow:0 0 6px ${color}"></span>
+        <span style="font-size:10px;color:#a1a1aa;text-transform:uppercase;font-weight:600;letter-spacing:0.06em">${node.category}</span>
         ${status}
       </div>
-      <p style="font-size:11px;color:#e4e4e7;line-height:1.4;margin:0">${text}</p>
+      <p style="font-size:12px;color:#e4e4e7;line-height:1.45;margin:0">${text}</p>
     </div>
   `;
 }
@@ -57,6 +59,7 @@ export default function Graph3D() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
   const [hasInitialized, setHasInitialized] = useState(false);
+  const bloomAdded = useRef(false);
 
   // ── Responsive sizing ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -84,6 +87,44 @@ export default function Graph3D() {
       links: links as GraphLink[],
     };
   }, [nodes, edges]);
+
+  // ── Add bloom post-processing + scene enhancements ────────────────────────
+  useEffect(() => {
+    if (!fgRef.current || bloomAdded.current) return;
+
+    const fg = fgRef.current;
+
+    // Add bloom via postProcessingComposer
+    const composer = fg.postProcessingComposer();
+    if (composer) {
+      const bloom = new UnrealBloomPass(
+        new THREE.Vector2(dimensions.width, dimensions.height),
+        0.8,   // strength
+        0.4,   // radius
+        0.85   // threshold
+      );
+      composer.addPass(bloom);
+    }
+    bloomAdded.current = true;
+
+    // Add subtle fog for depth
+    const scene = fg.scene();
+    scene.fog = new THREE.FogExp2(0x0a0a12, 0.003);
+
+    // Add ambient light so MeshStandard materials are visible
+    const ambient = new THREE.AmbientLight(0x404060, 1.2);
+    scene.add(ambient);
+
+    // Add a subtle point light at the camera for specular highlights
+    const pointLight = new THREE.PointLight(0x8888ff, 0.6, 500);
+    pointLight.position.set(0, 0, 0);
+    scene.add(pointLight);
+
+    // Attach point light to camera so it follows
+    const camera = fg.camera();
+    camera.add(pointLight);
+    scene.add(camera);
+  }, [dimensions.width, dimensions.height]);
 
   // ── Initial zoom-to-fit ───────────────────────────────────────────────────
   useEffect(() => {
@@ -120,40 +161,42 @@ export default function Graph3D() {
       const isNew = newNodeIds.has(node.id);
       const confidence = node.confidence ?? 1;
 
+      // Larger base radii for better visibility
       const baseRadius = node.isCurrent
-        ? 1.2 + confidence * 0.8
-        : 0.6 + confidence * 0.3;
+        ? 1.8 + confidence * 1.0
+        : 0.8 + confidence * 0.4;
       const radius = isSelected
-        ? baseRadius * 1.4
+        ? baseRadius * 1.5
         : isHighlighted
           ? baseRadius * 1.3
           : isNew
-            ? baseRadius * 1.5
+            ? baseRadius * 1.6
             : baseRadius;
 
       const group = new THREE.Group();
 
       // Core sphere
-      const geometry = new THREE.SphereGeometry(radius, 24, 24);
+      const geometry = new THREE.SphereGeometry(radius, 20, 20);
       const material = new THREE.MeshStandardMaterial({
         color: hexToNum(color),
         emissive: hexToNum(color),
-        emissiveIntensity: isSelected ? 1.0 : isHighlighted ? 0.7 : node.isCurrent ? 0.35 : 0.08,
+        emissiveIntensity: isSelected ? 1.2 : isHighlighted ? 0.9 : node.isCurrent ? 0.55 : 0.12,
         transparent: true,
-        opacity: node.isCurrent ? 0.92 : 0.22,
-        roughness: 0.3,
-        metalness: 0.6,
+        opacity: node.isCurrent ? 0.95 : 0.3,
+        roughness: 0.25,
+        metalness: 0.5,
       });
       const mesh = new THREE.Mesh(geometry, material);
       group.add(mesh);
 
-      // Outer glow for selected/highlighted
-      if (isSelected || isHighlighted || isNew) {
-        const glowGeo = new THREE.SphereGeometry(radius * 1.6, 16, 16);
+      // Soft outer glow (always on for current nodes, bigger for selected)
+      if (node.isCurrent || isSelected || isHighlighted || isNew) {
+        const glowScale = isSelected ? 2.2 : isHighlighted ? 1.9 : isNew ? 2.0 : 1.6;
+        const glowGeo = new THREE.SphereGeometry(radius * glowScale, 16, 16);
         const glowMat = new THREE.MeshBasicMaterial({
           color: hexToNum(color),
           transparent: true,
-          opacity: isSelected ? 0.15 : 0.08,
+          opacity: isSelected ? 0.18 : isHighlighted ? 0.12 : isNew ? 0.15 : 0.06,
         });
         const glowMesh = new THREE.Mesh(glowGeo, glowMat);
         group.add(glowMesh);
@@ -172,8 +215,8 @@ export default function Graph3D() {
   // ── Force engine config ───────────────────────────────────────────────────
   useEffect(() => {
     if (!fgRef.current) return;
-    fgRef.current.d3Force("charge")?.strength(-50);
-    fgRef.current.d3Force("link")?.distance(20);
+    fgRef.current.d3Force("charge")?.strength(-60);
+    fgRef.current.d3Force("link")?.distance(25);
   }, [graphData]);
 
   return (
@@ -183,7 +226,7 @@ export default function Graph3D() {
         graphData={graphData}
         width={dimensions.width}
         height={dimensions.height}
-        backgroundColor="#09090b"
+        backgroundColor="#08080f"
         showNavInfo={false}
         // Nodes
         nodeThreeObject={nodeThreeObject}
@@ -193,11 +236,15 @@ export default function Graph3D() {
         onBackgroundClick={() => setSelectedNodeId(null)}
         // Links
         linkColor={(link: GraphLink) => EDGE_COLORS[link.type] ?? "#6b7280"}
-        linkWidth={0.4}
-        linkOpacity={0.25}
+        linkWidth={0.5}
+        linkOpacity={0.3}
         linkDirectionalArrowLength={2.5}
         linkDirectionalArrowRelPos={1}
         linkDirectionalArrowColor={(link: GraphLink) => EDGE_COLORS[link.type] ?? "#6b7280"}
+        linkDirectionalParticles={1}
+        linkDirectionalParticleWidth={0.8}
+        linkDirectionalParticleSpeed={0.004}
+        linkDirectionalParticleColor={(link: GraphLink) => EDGE_COLORS[link.type] ?? "#6b7280"}
         // Performance
         warmupTicks={100}
         cooldownTicks={200}
@@ -208,16 +255,21 @@ export default function Graph3D() {
 
       {/* Zoom controls */}
       <div className="absolute bottom-4 right-4 z-10 flex flex-col gap-1.5">
-        <button
+        <motion.button
           onClick={handleZoomToFit}
           title="Zoom to fit all nodes"
-          className="bg-zinc-800/80 hover:bg-zinc-700/90 border border-zinc-700/40 rounded-lg w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-zinc-200 transition-colors backdrop-blur-sm shadow-lg"
+          className="bg-zinc-800/80 hover:bg-zinc-700/90 rounded-lg w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-zinc-200 transition-[background-color,color] duration-150 backdrop-blur-sm"
+          style={{
+            boxShadow: "0 0 0 1px rgba(63,63,70,0.3), 0 4px 12px rgba(0,0,0,0.3)",
+          }}
+          whileTap={{ scale: 0.96 }}
+          transition={{ type: "spring", duration: 0.3, bounce: 0 }}
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
             <rect x="2" y="2" width="12" height="12" rx="1.5" />
             <path d="M5 8h6M8 5v6" />
           </svg>
-        </button>
+        </motion.button>
       </div>
     </div>
   );

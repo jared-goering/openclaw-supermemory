@@ -26,3 +26,13 @@
   0%, 100% { opacity: 0.4; }
   50% { opacity: 1; }
 }
+
+/* Headings: prevent orphans */
+h1, h2, h3 {
+  text-wrap: balance;
+}
+
+/* Tabular nums for all mono text */
+.font-mono {
+  font-variant-numeric: tabular-nums;
+}

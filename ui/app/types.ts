@@ -46,14 +46,17 @@ export interface IngestItem {
 }
 
 export const CATEGORY_COLORS: Record<string, string> = {
-  person: "#3b82f6",
-  project: "#22c55e",
-  event: "#f59e0b",
-  decision: "#a855f7",
-  preference: "#ec4899",
+  person: "#60a5fa",     // blue-400
+  project: "#4ade80",    // green-400
+  event: "#fbbf24",      // amber-400
+  decision: "#c084fc",   // purple-400
+  preference: "#f472b6", // pink-400
+  insight: "#2dd4bf",    // teal-400
+  recommendation: "#fb923c", // orange-400
+  goal: "#facc15",       // yellow-400
 };
 
-export const CATEGORY_COLOR_DEFAULT = "#6b7280";
+export const CATEGORY_COLOR_DEFAULT = "#94a3b8"; // slate-400
 
 export function getCategoryColor(category: string): string {
   return CATEGORY_COLORS[category?.toLowerCase()] ?? CATEGORY_COLOR_DEFAULT;
@@ -62,7 +65,7 @@ export function getCategoryColor(category: string): string {
 export const EDGE_COLORS: Record<string, string> = {
   updates: "#a1a1aa",
   contradicts: "#ef4444",
-  extends: "#3b82f6",
-  supports: "#22c55e",
-  derives: "#a855f7",
+  extends: "#60a5fa",
+  supports: "#4ade80",
+  derives: "#c084fc",
 };
