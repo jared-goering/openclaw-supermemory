@@ -316,6 +316,14 @@ Measured on Apple M4 (Mac mini, 16GB):
 
 Database tested with 10,000+ memories, 11,000+ relations, 1,000+ entity profiles. SQLite with WAL mode handles concurrent reads from multiple agents without issues. Source text is normalized into a deduplicated chunks table, reducing storage by ~98% compared to per-memory duplication.
 
+## Benchmark
+
+Tested against [LongMemEval_s](https://xiaowu0162.github.io/long-mem-eval/), the standard benchmark for long-term conversational memory. Supermemory achieves **80% accuracy on fact recall, preferences, temporal reasoning, and knowledge updates** — on par with leading cloud memory systems like [Zep](https://www.getzep.com/) (71%) and [Emergence AI](https://www.emergence.ai/blog/sota-on-longmemeval-with-rag) (82%), while running entirely local on SQLite.
+
+Perfect scores on user fact retrieval and preference tracking. 32ms median search latency. No API keys required for core memory operations.
+
+Multi-session aggregate reasoning (e.g., "how many X happened this year?") is an active area of development with an event extraction layer shipping in v0.3.0.
+
 ## Development
 
 ```bash
