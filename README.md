@@ -35,6 +35,21 @@ The result: your agent doesn't just remember *what* was said. It knows what chan
 | Entity profiles (auto-built) | ✅ | ✅ | ✅ | ❌ |
 | No cloud account required | ✅ | ❌ | ❌ | ✅ |
 
+### Benchmark
+
+Tested against [LongMemEval_s](https://xiaowu0162.github.io/long-mem-eval/), the standard benchmark for long-term conversational memory:
+
+| Category | Accuracy |
+|----------|----------|
+| User fact retrieval | 100% |
+| Assistant fact recall | 100% |
+| Preference tracking | 100% |
+| Knowledge updates | 67% |
+| Temporal reasoning | 67% |
+| **Overall (production categories)** | **80%** |
+
+32ms median search latency. Entirely local on SQLite. No API keys required for search.
+
 ### How it works
 
 Most memory systems just stuff raw conversation text into a vector store. That's noisy and breaks down over time.
@@ -322,20 +337,7 @@ Database tested with 10,000+ memories, 11,000+ relations, 1,000+ entity profiles
   <img src="docs/benchmark.png" alt="LongMemEval_s benchmark results" width="700"/>
 </p>
 
-Tested against [LongMemEval_s](https://xiaowu0162.github.io/long-mem-eval/), the standard benchmark for long-term conversational memory. Ultramemory achieves **80% accuracy on fact recall, preferences, temporal reasoning, and knowledge updates**, competitive with cloud memory systems while running entirely local on SQLite.
-
-| Category | Accuracy |
-|----------|----------|
-| User fact retrieval | 100% |
-| Assistant fact recall | 100% |
-| Preference tracking | 100% |
-| Knowledge updates | 67% |
-| Temporal reasoning | 67% |
-| **Overall (production categories)** | **80%** |
-
-32ms median search latency. No API keys required for core memory operations.
-
-Multi-session aggregate reasoning (e.g., "how many X happened this year?") is an active area of development with an event extraction layer shipping in v0.3.0.
+Full results against [LongMemEval_s](https://xiaowu0162.github.io/long-mem-eval/). Multi-session aggregate reasoning is an active area of development with an event extraction layer shipping in v0.3.0.
 
 ## Development
 
