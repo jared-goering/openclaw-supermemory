@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <img src="supermemory-compressed.gif" alt="Supermemory 3D knowledge graph visualization" width="720">
+  <video src="https://github.com/jared-goering/openclaw-supermemory/raw/main/supermemory.mp4" width="720" autoplay loop muted playsinline></video>
 </p>
 
 ---
