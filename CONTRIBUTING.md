@@ -1,4 +1,4 @@
-# Contributing to Supermemory
+# Contributing to Ultramemory
 
 Thanks for your interest in contributing! Here's how to get started.
 
@@ -6,8 +6,8 @@ Thanks for your interest in contributing! Here's how to get started.
 
 ```bash
 # Clone the repo
-git clone https://github.com/jared-goering/supermemory.git
-cd supermemory
+git clone https://github.com/jared-goering/openclaw-ultramemory.git
+cd openclaw-ultramemory
 
 # Create a virtual environment
 python3 -m venv .venv
@@ -57,7 +57,7 @@ Pre-commit hooks run these automatically on each commit.
 
 ## What to Work On
 
-Check [open issues](https://github.com/jared-goering/supermemory/issues) for ideas. Issues labeled `good first issue` are a great starting point.
+Check [open issues](https://github.com/jared-goering/openclaw-ultramemory/issues) for ideas. Issues labeled `good first issue` are a great starting point.
 
 ## Reporting Bugs
 

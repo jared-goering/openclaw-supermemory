@@ -1,5 +1,5 @@
 <p align="center">
-  <h1 align="center">OpenClaw Supermemory</h1>
+  <h1 align="center">OpenClaw Ultramemory</h1>
   <p align="center">
     Local-first memory engine for AI agents.<br/>
     Atomic facts. Relational versioning. Temporal grounding. Zero cloud dependency.
@@ -7,25 +7,25 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/jared-goering/openclaw-supermemory/actions"><img src="https://github.com/jared-goering/openclaw-supermemory/actions/workflows/test.yml/badge.svg" alt="CI"></a>
-  <a href="https://pypi.org/project/openclaw-supermemory/"><img src="https://img.shields.io/pypi/v/openclaw-supermemory.svg" alt="PyPI"></a>
-  <a href="https://pypi.org/project/openclaw-supermemory/"><img src="https://img.shields.io/pypi/pyversions/openclaw-supermemory.svg" alt="Python"></a>
+  <a href="https://github.com/jared-goering/openclaw-ultramemory/actions"><img src="https://github.com/jared-goering/openclaw-ultramemory/actions/workflows/test.yml/badge.svg" alt="CI"></a>
+  <a href="https://pypi.org/project/openclaw-ultramemory/"><img src="https://img.shields.io/pypi/v/openclaw-ultramemory.svg" alt="PyPI"></a>
+  <a href="https://pypi.org/project/openclaw-ultramemory/"><img src="https://img.shields.io/pypi/pyversions/openclaw-ultramemory.svg" alt="Python"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
 </p>
 
 <p align="center">
-  <img src="docs/demo.gif" alt="Supermemory demo" width="720">
+  <img src="docs/demo.gif" alt="Ultramemory demo" width="720">
 </p>
 
 ---
 
-Most AI memory solutions just append text to a vector store and call it a day. Supermemory takes a different approach: it extracts **atomic facts** from conversations, detects **relationships** between new and existing memories (update, extend, contradict), grounds everything in **time**, and stores it all in SQLite with local embeddings.
+Most AI memory solutions just append text to a vector store and call it a day. Ultramemory takes a different approach: it extracts **atomic facts** from conversations, detects **relationships** between new and existing memories (update, extend, contradict), grounds everything in **time**, and stores it all in SQLite with local embeddings.
 
 The result: your agent doesn't just remember *what* was said. It knows what changed, when, and why the old version was wrong.
 
 ## What makes it different
 
-| Feature | Supermemory | Mem0 | Zep | LangMem |
+| Feature | Ultramemory | Mem0 | Zep | LangMem |
 |---------|:-----------:|:----:|:---:|:-------:|
 | Relational versioning (update/contradict/extend) | ✅ | ❌ | ❌ | ❌ |
 | Temporal grounding (event date vs. document date) | ✅ | ❌ | Partial | ❌ |
@@ -39,7 +39,7 @@ The result: your agent doesn't just remember *what* was said. It knows what chan
 
 Most memory systems just stuff raw conversation text into a vector store. That's noisy and breaks down over time.
 
-Supermemory extracts clean atomic facts from conversations, links them with relational versioning (so updated facts supersede old ones), and grounds them temporally (separating when something was recorded from when it happened). Searching over high-signal atomic memories then injecting original source chunks for detail dramatically outperforms naive retrieval.
+Ultramemory extracts clean atomic facts from conversations, links them with relational versioning (so updated facts supersede old ones), and grounds them temporally (separating when something was recorded from when it happened). Searching over high-signal atomic memories then injecting original source chunks for detail dramatically outperforms naive retrieval.
 
 Everything runs locally with SQLite and on-device embeddings. No cloud dependency, no external API required for search.
 
@@ -50,13 +50,13 @@ Everything runs locally with SQLite and on-device embeddings. No cloud dependenc
 ## Quickstart
 
 ```bash
-pip install openclaw-supermemory[local]   # includes local embeddings (no API needed for search)
+pip install openclaw-ultramemory[local]   # includes local embeddings (no API needed for search)
 
 export ANTHROPIC_API_KEY=sk-ant-...   # or any litellm-supported provider
 
-supermemory init
-supermemory ingest --text "Alice started at Acme Corp in March. She moved from Seattle to Portland." --session demo --agent my-agent
-supermemory search "Where does Alice work?"
+ultramemory init
+ultramemory ingest --text "Alice started at Acme Corp in March. She moved from Seattle to Portland." --session demo --agent my-agent
+ultramemory search "Where does Alice work?"
 ```
 
 Search uses local embeddings by default, so it's free and fast (~36ms warm). Ingestion requires an LLM for fact extraction (2-3 bounded calls per ingest).
@@ -121,21 +121,21 @@ Security: bind 127.0.0.1 by default, optional API key auth, locked CORS origins
 ## CLI
 
 ```bash
-supermemory init                                    # Create ~/.supermemory/ with config + empty DB
-supermemory ingest --text "..." --session s --agent a  # Extract and store memories
-supermemory ingest --file notes.md --session s --agent a  # Ingest from file
-supermemory search "query"                          # Semantic search (current memories)
-supermemory search "query" --all-versions           # Include superseded memories
-supermemory search "query" --as-of 2025-06-01       # Time-travel query
-supermemory history "Alice"                         # Version history for an entity
-supermemory profile "Alice"                         # Auto-built entity profile
-supermemory stats                                   # Database statistics
-supermemory serve                                   # Start API server (default: localhost:8642)
+ultramemory init                                    # Create ~/.ultramemory/ with config + empty DB
+ultramemory ingest --text "..." --session s --agent a  # Extract and store memories
+ultramemory ingest --file notes.md --session s --agent a  # Ingest from file
+ultramemory search "query"                          # Semantic search (current memories)
+ultramemory search "query" --all-versions           # Include superseded memories
+ultramemory search "query" --as-of 2025-06-01       # Time-travel query
+ultramemory history "Alice"                         # Version history for an entity
+ultramemory profile "Alice"                         # Auto-built entity profile
+ultramemory stats                                   # Database statistics
+ultramemory serve                                   # Start API server (default: localhost:8642)
 ```
 
 ## API
 
-Start the server with `supermemory serve`, then:
+Start the server with `ultramemory serve`, then:
 
 ### Ingest
 
@@ -167,7 +167,7 @@ The `include_source` parameter controls whether the original source text is retu
 
 ### Authentication
 
-If you set `SUPERMEMORY_API_KEY`, all requests must include an `X-API-Key` header:
+If you set `ULTRAMEMORY_API_KEY`, all requests must include an `X-API-Key` header:
 
 ```bash
 curl -X POST http://localhost:8642/api/search \
@@ -213,14 +213,14 @@ curl -X POST http://localhost:8642/api/entity/Alice/merge \
 
 ## Multi-agent memory
 
-Supermemory uses a single SQLite database with `agent_id` tagging. Every agent writes to the same store, and search spans all agents by default.
+Ultramemory uses a single SQLite database with `agent_id` tagging. Every agent writes to the same store, and search spans all agents by default.
 
 ```python
 # Agent A ingests a fact
-supermemory ingest --text "Customer prefers email over phone" --agent sales-bot --session deal-42
+ultramemory ingest --text "Customer prefers email over phone" --agent sales-bot --session deal-42
 
 # Agent B finds it later
-supermemory search "How does the customer want to be contacted?" --agent support-bot
+ultramemory search "How does the customer want to be contacted?" --agent support-bot
 # → Returns the sales-bot's memory, with source attribution
 ```
 
@@ -230,15 +230,15 @@ This means your support agent knows what your sales agent learned, without expli
 
 Config loads from (highest priority first):
 
-1. Environment variables (`SUPERMEMORY_*`)
-2. `./supermemory.yaml` (project-local)
-3. `~/.supermemory/config.yaml` (user-global)
+1. Environment variables (`ULTRAMEMORY_*`)
+2. `./ultramemory.yaml` (project-local)
+3. `~/.ultramemory/config.yaml` (user-global)
 4. Built-in defaults
 
 ### Example config
 
 ```yaml
-db_path: ~/.supermemory/memory.db
+db_path: ~/.ultramemory/memory.db
 
 # LLM for extraction (any litellm-compatible model)
 model: anthropic/claude-haiku-4-5
@@ -275,20 +275,20 @@ session_scan_dirs:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `SUPERMEMORY_DB_PATH` | `~/.supermemory/memory.db` | SQLite database location |
-| `SUPERMEMORY_MODEL` | `anthropic/claude-haiku-4-5` | LLM for fact extraction |
-| `SUPERMEMORY_EMBEDDING_PROVIDER` | `local` | `local` or `litellm` |
-| `SUPERMEMORY_EMBEDDING_MODEL` | `all-MiniLM-L6-v2` | Embedding model name |
-| `SUPERMEMORY_EMBEDDING_DIM` | `384` | Embedding vector dimensions |
-| `SUPERMEMORY_API_PORT` | `8642` | API server port |
-| `SUPERMEMORY_API_HOST` | `127.0.0.1` | Bind address (use `0.0.0.0` to expose externally) |
-| `SUPERMEMORY_API_KEY` | *(none)* | Optional API key for all requests |
-| `SUPERMEMORY_CORS_ORIGINS` | `*` | Comma-separated allowed CORS origins |
-| `SUPERMEMORY_DEDUP_THRESHOLD` | `0.97` | Cosine similarity threshold for dedup |
+| `ULTRAMEMORY_DB_PATH` | `~/.ultramemory/memory.db` | SQLite database location |
+| `ULTRAMEMORY_MODEL` | `anthropic/claude-haiku-4-5` | LLM for fact extraction |
+| `ULTRAMEMORY_EMBEDDING_PROVIDER` | `local` | `local` or `litellm` |
+| `ULTRAMEMORY_EMBEDDING_MODEL` | `all-MiniLM-L6-v2` | Embedding model name |
+| `ULTRAMEMORY_EMBEDDING_DIM` | `384` | Embedding vector dimensions |
+| `ULTRAMEMORY_API_PORT` | `8642` | API server port |
+| `ULTRAMEMORY_API_HOST` | `127.0.0.1` | Bind address (use `0.0.0.0` to expose externally) |
+| `ULTRAMEMORY_API_KEY` | *(none)* | Optional API key for all requests |
+| `ULTRAMEMORY_CORS_ORIGINS` | `*` | Comma-separated allowed CORS origins |
+| `ULTRAMEMORY_DEDUP_THRESHOLD` | `0.97` | Cosine similarity threshold for dedup |
 
 ## Visualization
 
-Supermemory includes a 3D knowledge graph UI built with React, Next.js, and [react-force-graph-3d](https://github.com/vasturiano/react-force-graph-3d). Nodes are colored by category, sized by connection count, and linked by relation type. Includes bloom post-processing for that glowing-brain look.
+Ultramemory includes a 3D knowledge graph UI built with React, Next.js, and [react-force-graph-3d](https://github.com/vasturiano/react-force-graph-3d). Nodes are colored by category, sized by connection count, and linked by relation type. Includes bloom post-processing for that glowing-brain look.
 
 ```bash
 cd ui && pnpm install && pnpm dev
@@ -322,7 +322,7 @@ Database tested with 10,000+ memories, 11,000+ relations, 1,000+ entity profiles
   <img src="docs/benchmark.png" alt="LongMemEval_s benchmark results" width="700"/>
 </p>
 
-Tested against [LongMemEval_s](https://xiaowu0162.github.io/long-mem-eval/), the standard benchmark for long-term conversational memory. Supermemory achieves **80% accuracy on fact recall, preferences, temporal reasoning, and knowledge updates**, competitive with cloud memory systems while running entirely local on SQLite.
+Tested against [LongMemEval_s](https://xiaowu0162.github.io/long-mem-eval/), the standard benchmark for long-term conversational memory. Ultramemory achieves **80% accuracy on fact recall, preferences, temporal reasoning, and knowledge updates**, competitive with cloud memory systems while running entirely local on SQLite.
 
 | Category | Accuracy |
 |----------|----------|
@@ -340,8 +340,8 @@ Multi-session aggregate reasoning (e.g., "how many X happened this year?") is an
 ## Development
 
 ```bash
-git clone https://github.com/jared-goering/openclaw-supermemory.git
-cd supermemory
+git clone https://github.com/jared-goering/openclaw-ultramemory.git
+cd openclaw-ultramemory
 pip install -e ".[dev]"
 
 # Run tests

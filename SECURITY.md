@@ -15,7 +15,7 @@ I'll respond within 48 hours and work with you on a fix before any public disclo
 
 ## Scope
 
-Supermemory stores potentially sensitive data (memories extracted from conversations). Security concerns include:
+Ultramemory stores potentially sensitive data (memories extracted from conversations). Security concerns include:
 
 - **Data leakage** through API endpoints
 - **SQL injection** in search or query parameters
@@ -31,7 +31,7 @@ Supermemory stores potentially sensitive data (memories extracted from conversat
 
 ## Known Supply Chain Risks
 
-**litellm (dependency):** On 2026-03-24, litellm versions 1.82.7 and 1.82.8 were compromised via a supply chain attack (TeamPCP/Trivy CI/CD compromise). These versions exfiltrate credentials, SSH keys, and environment variables. Our pyproject.toml explicitly excludes these versions. If you installed supermemory between 2026-03-24 10:52 UTC and the PyPI yank (~20:15 UTC), verify your litellm version: `pip show litellm`. Any version other than 1.82.7 or 1.82.8 is safe.
+**litellm (dependency):** On 2026-03-24, litellm versions 1.82.7 and 1.82.8 were compromised via a supply chain attack (TeamPCP/Trivy CI/CD compromise). These versions exfiltrate credentials, SSH keys, and environment variables. Our pyproject.toml explicitly excludes these versions. If you installed ultramemory between 2026-03-24 10:52 UTC and the PyPI yank (~20:15 UTC), verify your litellm version: `pip show litellm`. Any version other than 1.82.7 or 1.82.8 is safe.
 
 ## Design Principles
 

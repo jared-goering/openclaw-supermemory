@@ -19,5 +19,5 @@ What should have happened instead.
 **Environment**
 - Python version:
 - OS:
-- Supermemory version:
+- Ultramemory version:
 - Install method (pip/source):

@@ -1,5 +1,5 @@
 # OpenClaw Memory Engine — Design Doc
-*Inspired by Supermemory's SOTA architecture, adapted for local-first agent memory*
+*Inspired by Ultramemory's SOTA architecture, adapted for local-first agent memory*
 
 ## Problem Statement
 
@@ -24,7 +24,7 @@ CREATE TABLE memories (
     category TEXT,                    -- person, preference, project, decision, event, insight
     confidence REAL DEFAULT 1.0,      -- 0-1, decays over time
 
-    -- Temporal grounding (Supermemory's key insight)
+    -- Temporal grounding (Ultramemory's key insight)
     document_date TEXT NOT NULL,      -- when the conversation happened (ISO)
     event_date TEXT,                  -- when the fact/event actually occurred (ISO, nullable)
 
@@ -189,7 +189,7 @@ During Phase 2, both systems run in parallel:
 - Optional: auto-generate MEMORY.md from structured memories
 
 ### LLM calls are bounded
-Supermemory caps at 3 LLM calls per ingestion. We should too:
+Ultramemory caps at 3 LLM calls per ingestion. We should too:
 1. Extract atomic memories from chunk
 2. Check relations against existing memories
 3. (Optional) Update profiles
@@ -219,7 +219,7 @@ These are Phase 4+ features.
 ## Competition / Prior Art
 | System | Approach | Limitation |
 |--------|----------|------------|
-| Supermemory | Cloud SaaS, relational versioning | Proprietary, requires API |
+| Ultramemory | Cloud SaaS, relational versioning | Proprietary, requires API |
 | Mem0 | Key-value memory store | No temporal reasoning, no relations |
 | Zep | Temporal knowledge graph | Complex setup, cloud-first |
 | Letta (MemGPT) | Self-editing memory blocks | Limited to in-context memory |

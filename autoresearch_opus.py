@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Opus-Driven Autoresearch: Supermemory Benchmark Optimizer
+Opus-Driven Autoresearch: Ultramemory Benchmark Optimizer
 
 Uses Claude Opus as a research agent to design experiments, analyze results,
 and iteratively find optimal search/answer configurations.
@@ -119,7 +119,7 @@ def call_opus(system_prompt, user_prompt, max_tokens=4096):
 
 SYSTEM_PROMPT = """You are an ML research agent optimizing a memory retrieval benchmark.
 
-You're running experiments on a memory system (Supermemory) that:
+You're running experiments on a memory system (Ultramemory) that:
 1. Ingests conversation sessions and extracts atomic facts/memories using an LLM
 2. Stores them in SQLite with embeddings for semantic search
 3. Has entity profiles, relations (UPDATE/EXTEND/CONTRADICT), categories, temporal metadata

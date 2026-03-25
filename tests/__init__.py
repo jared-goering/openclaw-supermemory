@@ -1,1 +1,1 @@
-"""Tests for the supermemory package."""
+"""Tests for the ultramemory package."""

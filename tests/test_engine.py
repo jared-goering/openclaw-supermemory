@@ -1,5 +1,5 @@
 """
-Supermemory — Integration Tests
+Ultramemory — Integration Tests
 
 Tests the full pipeline: ingest → search → history → profile → temporal queries.
 Mocks _llm_call and embedder so tests run without API keys or model downloads.
@@ -14,7 +14,7 @@ from unittest.mock import MagicMock
 
 import numpy as np
 
-from supermemory.engine import MemoryEngine
+from ultramemory.engine import MemoryEngine
 
 # ── Mock LLM responses ──────────────────────────────────────────────────────
 

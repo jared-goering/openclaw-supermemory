@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Autoresearch: Supermemory Benchmark Optimizer
+Autoresearch: Ultramemory Benchmark Optimizer
 
 Iterates over search/answer strategies against pre-ingested benchmark data.
 Logs every experiment to experiments_bench.jsonl for analysis.
@@ -642,7 +642,7 @@ def smart_sample_config(history):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Autoresearch: Supermemory Benchmark Optimizer")
+    parser = argparse.ArgumentParser(description="Autoresearch: Ultramemory Benchmark Optimizer")
     parser.add_argument("--max-experiments", type=int, default=100)
     parser.add_argument("--resume", action="store_true", help="Resume from existing log")
     args = parser.parse_args()

@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Entity merge PK collision:** Uses `INSERT OR IGNORE` + `DELETE` pattern to avoid unique constraint violations when merging entities that share memories
 - **Cached search ignores `include_source`:** In-memory cache path now hydrates source chunks from `source_chunks` table when requested
 - **Phantom `agent_id` parameter:** Removed unused `agent_id` from recall endpoint; made optional in startup-context
-- **`__version__` mismatch:** `supermemory/__init__.py` now matches `pyproject.toml`
+- **`__version__` mismatch:** `ultramemory/__init__.py` now matches `pyproject.toml`
 
 ### Changed
 - Research background section added to README with benchmark attribution
@@ -27,22 +27,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Entity system:** `memory_entities` join table, `entity_aliases` table, entity merge API, indexed entity lookups (replaces O(n) LIKE scans)
 - **Entity endpoints:** `/api/entities`, `/api/entity/{name}`, `/api/entity/{name}/merge`
 - **Source chunk normalization:** Deduplicated `source_chunks` table with FK (98% storage reduction on source text)
-- **Migration tooling:** `supermemory.migrate_chunks` for upgrading existing databases
+- **Migration tooling:** `ultramemory.migrate_chunks` for upgrading existing databases
 - `include_source` parameter on search (source text hidden by default)
-- `supermemory serve` CLI command for starting the API server
+- `ultramemory serve` CLI command for starting the API server
 - GitHub Actions CI (Python 3.10-3.12) with ruff linting step
 - CONTRIBUTING.md, SECURITY.md, CODE_OF_CONDUCT.md, CHANGELOG.md
 - Pre-commit hooks (ruff linting + formatting, pytest)
 - Issue and PR templates
 - `PRAGMA foreign_keys=ON` enforced on all connections
 - Dynamic `embedding_dim` config (replaces hardcoded 384)
-- New env vars: `SUPERMEMORY_API_HOST`, `SUPERMEMORY_API_KEY`, `SUPERMEMORY_CORS_ORIGINS`
+- New env vars: `ULTRAMEMORY_API_HOST`, `ULTRAMEMORY_API_KEY`, `ULTRAMEMORY_CORS_ORIGINS`
 
 ### Changed
 - LLM calls decoupled from write transactions (no DB lock during API calls)
 - Search ranks by ID+embedding only, then lazy-hydrates top-k results (no full-record scan)
-- Moved all modules into `supermemory/` package (was flat root files)
-- `sentence-transformers` is now an optional dependency: `pip install openclaw-supermemory[local]`
+- Moved all modules into `ultramemory/` package (was flat root files)
+- `sentence-transformers` is now an optional dependency: `pip install openclaw-ultramemory[local]`
 - Replaced personal data in tests/docs with generic examples
 - Health endpoint now reports source chunk count and version
 
