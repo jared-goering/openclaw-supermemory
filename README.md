@@ -14,7 +14,9 @@
 </p>
 
 <p align="center">
-  <video src="https://github.com/jared-goering/openclaw-supermemory/raw/main/supermemory.mp4" width="720" autoplay loop muted playsinline></video>
+  <a href="https://github.com/jared-goering/openclaw-supermemory/releases/download/assets/supermemory.mp4">
+    <img src="docs/poster.jpg" alt="▶ Watch Supermemory demo" width="720">
+  </a>
 </p>
 
 ---
