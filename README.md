@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshot.jpg" alt="Supermemory 3D knowledge graph visualization" width="720">
+  <img src="supermemory-compressed.gif" alt="Supermemory 3D knowledge graph visualization" width="720">
 </p>
 
 ---
