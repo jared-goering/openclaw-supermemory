@@ -58,3 +58,19 @@ bulk_state.json
 docs/*.png
 !docs/benchmark.png
 uv.lock
+
+# Internal benchmarking & research
+autoresearch_*.py
+experiments_*.jsonl
+research_*.md
+test_multisession*.py
+
+# Media assets (use GitHub releases)
+*.mp4
+docs/poster.jpg
+docs/graph-zoomed.jpg
+docs/screenshot.jpg
+
+# Extra logo variants
+docs/logo.svg
+docs/logo-v2.svg
