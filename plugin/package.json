@@ -1,0 +1,42 @@
+{
+  "name": "supermemory-claw",
+  "version": "0.1.0",
+  "description": "Automatic agent memory for OpenClaw — injects relevant memories into every agent turn and extracts new memories from responses. Powered by openclaw-supermemory.",
+  "type": "module",
+  "main": "index.ts",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "files": [
+    "index.ts",
+    "dist/",
+    "openclaw.plugin.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "openclaw",
+    "openclaw-plugin",
+    "memory",
+    "agent-memory",
+    "supermemory",
+    "semantic-search",
+    "knowledge-graph"
+  ],
+  "author": "Jared Goering <goering.jared@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jared-goering/openclaw-supermemory"
+  },
+  "peerDependencies": {
+    "openclaw": ">=2026.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}

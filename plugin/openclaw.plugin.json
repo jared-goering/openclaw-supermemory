@@ -1,0 +1,89 @@
+{
+  "id": "supermemory-claw",
+  "uiHints": {
+    "enabled": {
+      "label": "Enabled",
+      "help": "Enable or disable supermemory integration"
+    },
+    "apiUrl": {
+      "label": "API URL",
+      "help": "Supermemory API base URL (default: http://127.0.0.1:8642)"
+    },
+    "topK": {
+      "label": "Top K Results",
+      "help": "Number of memories to inject per turn (default: 10)"
+    },
+    "minSimilarity": {
+      "label": "Minimum Similarity",
+      "help": "Minimum cosine similarity threshold for memory retrieval (0.0–1.0, default: 0.3)"
+    },
+    "excludeAgents": {
+      "label": "Excluded Agents",
+      "help": "Agent IDs to exclude from memory injection/ingestion (comma-separated glob patterns)"
+    },
+    "ingestOnOutput": {
+      "label": "Ingest on Output",
+      "help": "Automatically extract and store memories from agent responses (default: true)"
+    },
+    "ingestOnCompaction": {
+      "label": "Ingest on Compaction",
+      "help": "Ingest conversation content when LCM compacts it (default: true)"
+    },
+    "apiKey": {
+      "label": "API Key",
+      "help": "Optional API key for supermemory server authentication",
+      "sensitive": true
+    },
+    "contextLabel": {
+      "label": "Context Label",
+      "help": "Header label for injected memory context (default: 'Agent Memory')"
+    },
+    "maxContextTokens": {
+      "label": "Max Context Tokens",
+      "help": "Approximate token budget for injected memories (default: 2000)"
+    }
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "enabled": {
+        "type": "boolean"
+      },
+      "apiUrl": {
+        "type": "string"
+      },
+      "topK": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 50
+      },
+      "minSimilarity": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "excludeAgents": {
+        "type": "array",
+        "items": { "type": "string" }
+      },
+      "ingestOnOutput": {
+        "type": "boolean"
+      },
+      "ingestOnCompaction": {
+        "type": "boolean"
+      },
+      "apiKey": {
+        "type": "string"
+      },
+      "contextLabel": {
+        "type": "string"
+      },
+      "maxContextTokens": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 10000
+      }
+    }
+  }
+}
