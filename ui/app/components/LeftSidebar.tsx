@@ -236,9 +236,9 @@ export default function LeftSidebar() {
             Entities
           </h2>
           <div className="flex flex-wrap gap-1.5">
-            {entities.map((name) => (
+            {[...new Set(entities)].map((name, idx) => (
               <motion.button
-                key={name}
+                key={`${name}-${idx}`}
                 onClick={() => setSelectedNodeId(name)}
                 className="px-2.5 py-1 min-h-[28px] rounded-md text-[11px] font-medium text-zinc-400 hover:text-zinc-200 transition-colors duration-150"
                 style={{
