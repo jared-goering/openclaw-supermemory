@@ -91,8 +91,11 @@ export function MemoryProvider({ children }: { children: ReactNode }) {
         relations: statsData.relations ?? 0,
         categories: statsData.categories ?? {},
       });
+      const rawEntities = Array.isArray(entitiesData) ? entitiesData : (entitiesData.entities ?? []);
       setEntities(
-        Array.isArray(entitiesData) ? entitiesData : (entitiesData.entities ?? [])
+        rawEntities.map((e: string | { entity_name: string }) =>
+          typeof e === "string" ? e : e.entity_name
+        )
       );
     } catch (e) {
       console.error("Failed to fetch graph data:", e);
