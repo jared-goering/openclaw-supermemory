@@ -39,6 +39,10 @@ The result: your agent doesn't just remember *what* was said. It knows what chan
 
 ## Multimodal memory
 
+<p align="center">
+  <img src="docs/multimodal.jpg" alt="Ultramemory multimodal embedding" width="720">
+</p>
+
 With Gemini Embedding 2, Ultramemory can ingest and search across images, audio, and video — not just text. All media types live in the same embedding space, so a text search like "sunset at the beach" finds matching photos, audio clips, and video.
 
 ```bash

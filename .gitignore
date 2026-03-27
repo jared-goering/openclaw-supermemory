@@ -57,6 +57,7 @@ bulk_state.json
 *.plist
 docs/*.png
 !docs/benchmark.png
+!docs/multimodal.png
 uv.lock
 
 # Internal benchmarking & research
