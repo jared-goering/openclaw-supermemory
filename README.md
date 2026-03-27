@@ -34,6 +34,7 @@ The result: your agent doesn't just remember *what* was said. It knows what chan
 | Multi-agent shared memory | ✅ | ❌ | ✅ | ❌ |
 | Entity profiles (auto-built) | ✅ | ✅ | ✅ | ❌ |
 | No cloud account required | ✅ | ❌ | ❌ | ✅ |
+| Pluggable embeddings (local/Gemini/OpenAI) | ✅ | ❌ | ❌ | ❌ |
 
 ### Benchmark
 
@@ -145,6 +146,8 @@ ultramemory search "query" --as-of 2025-06-01       # Time-travel query
 ultramemory history "Alice"                         # Version history for an entity
 ultramemory profile "Alice"                         # Auto-built entity profile
 ultramemory stats                                   # Database statistics
+ultramemory reembed                                   # Re-embed all memories with current model
+ultramemory reembed --dry-run                         # Preview token count and cost
 ultramemory serve                                   # Start API server (default: localhost:8642)
 ```
 
@@ -224,6 +227,7 @@ curl -X POST http://localhost:8642/api/entity/Alice/merge \
 | `GET` | `/api/entities` | List all known entities |
 | `GET` | `/api/entity/{name}` | Entity details (memories, profile, aliases) |
 | `POST` | `/api/entity/{name}/merge` | Merge entity aliases |
+| `POST` | `/api/reembed` | Re-embed all memories (supports dry_run) |
 | `POST` | `/api/cache/refresh` | Rebuild embedding cache |
 
 ## Multi-agent memory
@@ -299,7 +303,46 @@ session_scan_dirs:
 | `ULTRAMEMORY_API_HOST` | `127.0.0.1` | Bind address (use `0.0.0.0` to expose externally) |
 | `ULTRAMEMORY_API_KEY` | *(none)* | Optional API key for all requests |
 | `ULTRAMEMORY_CORS_ORIGINS` | `*` | Comma-separated allowed CORS origins |
+| `GOOGLE_API_KEY` | *(none)* | Required for Gemini embedding backend |
 | `ULTRAMEMORY_DEDUP_THRESHOLD` | `0.97` | Cosine similarity threshold for dedup |
+
+## Embedding backends
+
+Ultramemory defaults to local embeddings (sentence-transformers, free, no API key). You can switch to API-based embeddings for better quality.
+
+### Available backends
+
+| Backend | Model | Dimensions | Cost | Quality |
+|---------|-------|-----------|------|---------|
+| **Local** (default) | all-MiniLM-L6-v2 | 384 | Free | Good |
+| **Gemini** | gemini/gemini-embedding-2 | 768 | $0.20/1M tokens | Best |
+| **OpenAI** | text-embedding-3-small | 1536 | $0.02/1M tokens | Great |
+| **OpenAI** | text-embedding-3-large | 3072 | $0.13/1M tokens | Great |
+| **Cohere** | cohere/embed-english-v3.0 | 1024 | $0.10/1M tokens | Great |
+
+Any embedding provider supported by [litellm](https://docs.litellm.ai/docs/embedding/supported_embedding) works out of the box.
+
+### Switching to Gemini Embedding 2
+
+```bash
+export GOOGLE_API_KEY=your-key
+```
+
+```yaml
+# ultramemory.yaml
+embedding_provider: litellm
+embedding_model: gemini/gemini-embedding-2
+embedding_dim: 768
+```
+
+Then re-embed your existing memories:
+
+```bash
+ultramemory reembed --dry-run   # preview cost (typically pennies)
+ultramemory reembed             # re-embed all current memories
+```
+
+The `reembed` command batches API calls, wraps each batch in a transaction, and rebuilds the search cache when done.
 
 ## Visualization
 
