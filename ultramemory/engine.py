@@ -361,15 +361,33 @@ class MemoryEngine:
         if self._embedding_provider == "local":
             return self.embedder.encode(texts, normalize_embeddings=True).astype(np.float32)
 
+        if self._embedding_provider == "gemini":
+            # Use google-genai client directly (litellm doesn't support newer Gemini embedding models)
+            client = self._get_genai_client()
+            model_name = self._embedding_model.replace("gemini/", "")
+            BATCH_LIMIT = 100
+            all_embeddings = []
+            for i in range(0, len(texts), BATCH_LIMIT):
+                batch = texts[i : i + BATCH_LIMIT]
+                response = client.models.embed_content(model=model_name, contents=batch)
+                all_embeddings.extend(e.values for e in response.embeddings)
+            vecs = np.array(all_embeddings, dtype=np.float32)
+            norms = np.linalg.norm(vecs, axis=1, keepdims=True)
+            norms = np.where(norms == 0, 1, norms)
+            return (vecs / norms).astype(np.float32)
+
         # API-based embeddings via litellm (supports openai, cohere, voyage, etc.)
-        response = litellm.embedding(
-            model=self._embedding_model,
-            input=texts,
-        )
-        vecs = np.array(
-            [item["embedding"] for item in response.data],
-            dtype=np.float32,
-        )
+        # Chunk into batches of 100 to respect provider batch limits (e.g. Gemini)
+        BATCH_LIMIT = 100
+        all_embeddings = []
+        for i in range(0, len(texts), BATCH_LIMIT):
+            batch = texts[i : i + BATCH_LIMIT]
+            response = litellm.embedding(
+                model=self._embedding_model,
+                input=batch,
+            )
+            all_embeddings.extend(item["embedding"] for item in response.data)
+        vecs = np.array(all_embeddings, dtype=np.float32)
         # Normalize for cosine similarity
         norms = np.linalg.norm(vecs, axis=1, keepdims=True)
         norms = np.where(norms == 0, 1, norms)
