@@ -1127,6 +1127,274 @@ async def aggregate_search(req: AggregateSearchRequest):
     return await loop.run_in_executor(None, partial(_aggregate_search_sync, req))
 
 
+def _deduplicate_memories(memories: list[dict]) -> list[dict]:
+    """Deduplicate memories referring to the same underlying event.
+
+    Groups by (date + content fingerprint). When multiple memories share the
+    same date and similar content, keep the one with the highest similarity
+    score as the representative.
+    """
+    import re as _re
+
+    def _fingerprint(content: str) -> str:
+        """Create a rough topic fingerprint from memory content."""
+        words = _re.findall(r"[a-z]+", content.lower())
+        # Remove very common words to get topic signal
+        stop = {
+            "the",
+            "a",
+            "an",
+            "is",
+            "was",
+            "were",
+            "are",
+            "been",
+            "be",
+            "have",
+            "has",
+            "had",
+            "do",
+            "did",
+            "does",
+            "will",
+            "would",
+            "could",
+            "should",
+            "may",
+            "might",
+            "shall",
+            "can",
+            "need",
+            "i",
+            "me",
+            "my",
+            "we",
+            "our",
+            "you",
+            "your",
+            "he",
+            "she",
+            "it",
+            "they",
+            "them",
+            "his",
+            "her",
+            "its",
+            "their",
+            "this",
+            "that",
+            "these",
+            "those",
+            "and",
+            "or",
+            "but",
+            "if",
+            "in",
+            "on",
+            "at",
+            "to",
+            "for",
+            "of",
+            "with",
+            "by",
+            "from",
+            "about",
+            "as",
+            "into",
+            "through",
+            "during",
+            "before",
+            "after",
+            "not",
+            "no",
+            "so",
+            "up",
+            "out",
+            "just",
+            "also",
+            "very",
+            "then",
+            "than",
+            "too",
+            "some",
+            "all",
+            "any",
+            "each",
+            "every",
+        }
+        key_words = sorted(set(w for w in words if w not in stop and len(w) > 2))
+        return " ".join(key_words[:8])  # top 8 content words as fingerprint
+
+    # Group by (date, fingerprint)
+    groups: dict[tuple[str, str], list[dict]] = {}
+    for m in memories:
+        date = m.get("document_date") or m.get("event_date") or "unknown"
+        fp = _fingerprint(m.get("content", ""))
+        key = (date, fp)
+        groups.setdefault(key, []).append(m)
+
+    # For groups with identical (date, fingerprint), also check if content
+    # is actually different enough to keep separate. Use Jaccard similarity.
+    deduped = []
+    for (_date, _fp), group in groups.items():
+        if len(group) == 1:
+            deduped.append(group[0])
+            continue
+
+        # Within each group, merge memories with high content overlap
+        representatives = []
+        for m in group:
+            m_words = set(_re.findall(r"[a-z]+", m.get("content", "").lower()))
+            merged = False
+            for rep in representatives:
+                rep_words = set(_re.findall(r"[a-z]+", rep.get("content", "").lower()))
+                if not m_words or not rep_words:
+                    continue
+                jaccard = len(m_words & rep_words) / len(m_words | rep_words)
+                if jaccard > 0.4:  # 40% word overlap = same event
+                    # Keep the one with higher similarity score
+                    if m.get("similarity", 0) > rep.get("similarity", 0):
+                        representatives[representatives.index(rep)] = m
+                    merged = True
+                    break
+            if not merged:
+                representatives.append(m)
+        deduped.extend(representatives)
+
+    return deduped
+
+
+def _extract_distinct_events(
+    memories: list[dict], event_clusters: list[dict], question: str
+) -> list[dict]:
+    """Extract a clean list of distinct events from memories and clusters.
+
+    Returns a JSON-serializable list of {date, description, source, confidence}
+    for the LLM to count, with duplicates already merged.
+
+    Aggressively deduplicates clusters that share the same event_type and have
+    overlapping participants or similar labels.
+    """
+    import re as _re
+
+    # Step 1: Deduplicate event clusters by (event_type + participants overlap)
+    def _cluster_merge_key(c: dict) -> str:
+        """Generate a merge key for fuzzy cluster dedup."""
+        etype = (c.get("event_type") or "").lower()
+        participants = (c.get("participants") or "").lower()
+        # Extract name-like tokens from participants
+        names = sorted(set(_re.findall(r"[a-z]{3,}", participants)))
+        date = (c.get("normalized_date") or "")[:7]  # YYYY-MM granularity
+        return f"{etype}|{'_'.join(names[:3])}|{date}"
+
+    # Group clusters by merge key, keep the one with highest confidence
+    cluster_groups: dict[str, list[dict]] = {}
+    for c in event_clusters:
+        mk = _cluster_merge_key(c)
+        cluster_groups.setdefault(mk, []).append(c)
+
+    # Also merge clusters with same event_type and highly similar labels
+    deduped_clusters = []
+    for _mk, group in cluster_groups.items():
+        # Pick best representative (highest confidence, most complete data)
+        best = max(
+            group,
+            key=lambda c: (
+                c.get("confidence") or 0,
+                1 if c.get("normalized_date") else 0,
+                len(c.get("canonical_label") or ""),
+            ),
+        )
+        deduped_clusters.append(best)
+
+    # Second pass: merge clusters with same event_type and overlapping label words
+    final_clusters = []
+    for c in deduped_clusters:
+        c_words = set(_re.findall(r"[a-z]{3,}", (c.get("canonical_label") or "").lower()))
+        c_type = (c.get("event_type") or "").lower()
+        merged = False
+        for existing in final_clusters:
+            e_type = (existing.get("event_type") or "").lower()
+            if c_type != e_type:
+                continue
+            e_words = set(
+                _re.findall(r"[a-z]{3,}", (existing.get("canonical_label") or "").lower())
+            )
+            if c_words and e_words:
+                overlap = len(c_words & e_words) / min(len(c_words), len(e_words))
+                if overlap > 0.5:
+                    # Merge: keep the one with more info
+                    if (c.get("confidence") or 0) > (existing.get("confidence") or 0):
+                        final_clusters[final_clusters.index(existing)] = c
+                    merged = True
+                    break
+        if not merged:
+            final_clusters.append(c)
+
+    # Step 2: Build event list from deduplicated clusters
+    events: list[dict] = []
+    for c in final_clusters:
+        events.append(
+            {
+                "date": c.get("normalized_date", "unknown"),
+                "description": c.get("canonical_label", ""),
+                "event_type": c.get("event_type", ""),
+                "subtype": c.get("subtype", ""),
+                "user_involvement": c.get("user_involvement", "unknown"),
+                "confidence": c.get("confidence", 0),
+                "duration_minutes": c.get("duration_minutes"),
+                "participants": c.get("participants", ""),
+                "source": "event_cluster",
+            }
+        )
+
+    # Step 3: Add memory-sourced events only if clearly not covered by clusters
+    for m in memories:
+        content = m.get("content", "")
+        content_lower = content.lower()
+        content_words = set(_re.findall(r"[a-z]{3,}", content_lower))
+
+        # Check overlap with any existing event
+        already_covered = False
+        for ev in events:
+            ev_words = set(_re.findall(r"[a-z]{3,}", (ev["description"]).lower()))
+            if ev_words and content_words:
+                overlap = len(ev_words & content_words) / min(len(ev_words), len(content_words))
+                if overlap > 0.35:
+                    already_covered = True
+                    break
+        if already_covered:
+            continue
+
+        date = m.get("document_date") or m.get("event_date") or "unknown"
+        # Dedup memories by date + content fingerprint
+        short = _re.sub(r"[^a-z0-9 ]", "", content_lower)[:50].strip()
+        dedup_key = f"{date}:{short}"
+        if any(e.get("_dedup_key") == dedup_key for e in events if e.get("source") == "memory"):
+            continue
+
+        events.append(
+            {
+                "date": date,
+                "description": content[:200],
+                "event_type": m.get("category", ""),
+                "subtype": "",
+                "user_involvement": "mentioned",
+                "confidence": m.get("confidence", 0),
+                "duration_minutes": None,
+                "participants": "",
+                "source": "memory",
+                "_dedup_key": dedup_key,
+            }
+        )
+
+    # Remove internal keys before returning
+    for ev in events:
+        ev.pop("_dedup_key", None)
+
+    return events
+
+
 def _aggregate_search_sync(req: AggregateSearchRequest):
     """
     Combines three retrieval strategies for multi-session aggregate questions:
@@ -1329,13 +1597,23 @@ def _aggregate_search_sync(req: AggregateSearchRequest):
 
     all_memories = vector_memories + keyword_memories
 
+    # Phase 4: Deduplicate memories that refer to the same underlying event.
+    # Group by (normalized_date + topic_fingerprint) to collapse duplicates.
+    deduped_memories = _deduplicate_memories(all_memories)
+
+    # Phase 5: Extract structured event list from deduplicated memories + clusters.
+    extracted_events = _extract_distinct_events(deduped_memories, event_clusters, req.question)
+
     return {
-        "memories": all_memories,
-        "memory_count": len(all_memories),
+        "memories": deduped_memories,
+        "memory_count": len(deduped_memories),
+        "raw_memory_count": len(all_memories),
         "vector_count": len(vector_memories),
         "keyword_count": len(keyword_memories),
         "event_clusters": event_clusters,
         "cluster_count": len(event_clusters),
+        "extracted_events": extracted_events,
+        "extracted_event_count": len(extracted_events),
     }
 
 

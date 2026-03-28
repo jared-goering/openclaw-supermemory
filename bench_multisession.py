@@ -62,7 +62,7 @@ OPENROUTER_KEY = get_openrouter_key()
 
 
 def load_checkpoint_questions():
-    """Load the 3 ingested multi-session questions from checkpoint."""
+    """Load multi-session questions from checkpoint (includes gpt4_* variants)."""
     with open(CHECKPOINT) as f:
         data = json.load(f)
     questions = []
@@ -80,8 +80,34 @@ def load_checkpoint_questions():
     return questions
 
 
+def _get_ingested_session_prefixes():
+    """Query the eval DB to find which session prefixes have ingested data."""
+    try:
+        requests.get(f"{EVAL_API}/api/stats", timeout=5)
+        # Fallback: query DB directly if stats endpoint not available
+    except Exception:
+        pass
+
+    import sqlite3
+
+    db_path = os.environ.get("ULTRAMEMORY_DB_PATH", "/tmp/memorybench_eval.db")  # noqa: S108
+    conn = sqlite3.connect(db_path, timeout=5)
+    rows = conn.execute(
+        """SELECT DISTINCT
+            CASE
+                WHEN source_session LIKE '%-eval-llm%'
+                THEN substr(source_session, 7, instr(source_session, '-eval-llm') - 7)
+                ELSE source_session
+            END as prefix
+        FROM memories
+        WHERE source_session LIKE 'bench_%'"""
+    ).fetchall()
+    conn.close()
+    return {r[0] for r in rows}
+
+
 def load_all_multisession_questions():
-    """Load all 133 multi-session questions from JSON files (for reference)."""
+    """Load all 133 multi-session questions from JSON files."""
     questions = []
     for f in sorted(os.listdir(QUESTIONS_DIR)):
         if not f.endswith(".json"):
@@ -91,6 +117,49 @@ def load_all_multisession_questions():
         if q.get("question_type") == "multi-session":
             questions.append(q)
     return questions
+
+
+def load_testable_questions():
+    """Load all multi-session questions that have ingested data in the eval DB.
+
+    Merges questions from two sources:
+    1. JSON question files (the canonical 133 multi-session questions)
+    2. Checkpoint file (may include gpt4_* variants not in JSON files)
+
+    Returns only questions whose session data exists in the eval DB.
+    """
+    ingested_prefixes = _get_ingested_session_prefixes()
+    print(f"  Ingested session prefixes in eval DB: {len(ingested_prefixes)}")
+
+    # Load from JSON files
+    all_ms = load_all_multisession_questions()
+    print(f"  Total multi-session questions in dataset: {len(all_ms)}")
+
+    # Build testable set from JSON files
+    testable = {}
+    for q in all_ms:
+        qid = q["question_id"]
+        if qid in ingested_prefixes:
+            testable[qid] = {
+                "id": qid,
+                "question": q["question"],
+                "ground_truth": q["answer"],
+                "question_type": q["question_type"],
+                "container_tag": f"{qid}-eval-llm",
+            }
+
+    # Also load from checkpoint (picks up gpt4_* and other variants)
+    checkpoint_qs = load_checkpoint_questions()
+    for q in checkpoint_qs:
+        if q["id"] not in testable:
+            # Check if this question's prefix has data
+            container = q.get("container_tag", q["id"])
+            prefix = container.split("-eval-llm")[0] if "-eval-llm" in container else q["id"]
+            # Check both with and without gpt4_ prefix
+            if prefix in ingested_prefixes or f"gpt4_{prefix}" in ingested_prefixes:
+                testable[q["id"]] = q
+
+    return list(testable.values()), len(all_ms)
 
 
 # ─── LLM Calls ───────────────────────────────────────────────────────────────
@@ -180,7 +249,7 @@ def search_entity(question, top_k=30, entity_expand_k=50):
 # ─── Answer Strategies ────────────────────────────────────────────────────────
 
 
-def build_aggregate_prompt(question, memories, event_clusters):
+def build_aggregate_prompt(question, memories, event_clusters, extracted_events=None):
     """Build prompt for multi-session aggregate questions with event cluster context."""
     # Group memories by session
     session_groups = {}
@@ -203,6 +272,104 @@ def build_aggregate_prompt(question, memories, event_clusters):
         mem_parts.append("\n".join(lines))
 
     memory_context = "\n\n".join(mem_parts)
+
+    # Format pre-extracted distinct events (from server-side dedup)
+    # Filter to: (1) cluster-sourced, (2) user participated, (3) topic-relevant
+    import re as _re
+
+    extracted_context = ""
+    if extracted_events:
+        # Extract topic keywords from question for relevance filtering
+        q_lower = question.lower()
+        q_stop = {
+            "how",
+            "many",
+            "much",
+            "did",
+            "do",
+            "have",
+            "has",
+            "had",
+            "i",
+            "my",
+            "me",
+            "the",
+            "in",
+            "on",
+            "at",
+            "to",
+            "for",
+            "of",
+            "and",
+            "or",
+            "different",
+            "attend",
+            "attended",
+            "last",
+            "past",
+            "this",
+            "year",
+            "month",
+            "week",
+            "all",
+            "total",
+            "what",
+            "which",
+            "where",
+            "when",
+        }
+        q_words = set(_re.findall(r"[a-z]+", q_lower)) - q_stop
+
+        relevant = []
+        for ev in extracted_events:
+            if ev.get("source") != "event_cluster":
+                continue
+            if ev.get("user_involvement") not in (
+                "attended",
+                "participated",
+                "performed",
+                "completed",
+            ):
+                continue
+            # Topic relevance check: event type/label should overlap with question
+            # Use stem matching (strip trailing s/ed/ing) for fuzzy overlap
+            ev_text = (
+                f"{ev.get('event_type', '')} {ev.get('subtype', '')} {ev['description']}".lower()
+            )
+            ev_words = set(_re.findall(r"[a-z]+", ev_text))
+
+            def _stems(words):
+                stems = set()
+                for w in words:
+                    stems.add(w)
+                    for suffix in ("ings", "ing", "tion", "tions", "ed", "es", "s"):
+                        if w.endswith(suffix) and len(w) - len(suffix) >= 3:
+                            stems.add(w[: -len(suffix)])
+                return stems
+
+            if q_words and ev_words:
+                q_stems = _stems(q_words)
+                ev_stems = _stems(ev_words)
+                overlap = q_stems & ev_stems
+                if not overlap:
+                    continue
+            relevant.append(ev)
+
+        if relevant:
+            extracted_lines = [
+                f"PRE-EXTRACTED DISTINCT EVENTS matching the question topic ({len(relevant)} found):",
+                "  (These are server-side deduplicated. Use as primary reference for counting.)",
+            ]
+            for i, ev in enumerate(relevant, 1):
+                parts = [f"  {i}. {ev['description'][:150]}"]
+                meta = [f"date={ev.get('date', '?')}"]
+                if ev.get("duration_minutes"):
+                    meta.append(f"duration={ev['duration_minutes']}min")
+                if ev.get("participants"):
+                    meta.append(f"participants={ev['participants']}")
+                parts.append(f"     {' | '.join(meta)}")
+                extracted_lines.append("\n".join(parts))
+            extracted_context = "\n".join(extracted_lines)
 
     # Deduplicate event clusters by distinct_key
     seen_keys = set()
@@ -231,24 +398,21 @@ def build_aggregate_prompt(question, memories, event_clusters):
 
     return f"""Question: {question}
 
-You are answering a question that requires gathering and combining information from MULTIPLE conversation sessions. The user had many separate conversations and you need to piece together information scattered across them.
+You are answering a question that requires gathering and combining information from MULTIPLE conversation sessions.
 
-{cluster_context + chr(10) + chr(10) if cluster_context else ""}Memories from conversations (organized by session):
-{memory_context}
+{extracted_context if extracted_context else cluster_context if cluster_context else ""}
 
-CRITICAL INSTRUCTIONS FOR COUNTING:
-1. The question asks about DISTINCT real-world events/items. Two memories about the same event = ONE event.
-2. AGGRESSIVELY DEDUPLICATE: If two entries mention the same person, place, or occasion (even with slightly different wording or from different sessions), they are the SAME event. Count it ONCE.
-3. Only count events where the user's involvement matches what the question asks (e.g., "attended" means the user was present, not just discussed or planned).
-4. Ignore events the user only discussed, planned, or observed — unless the question specifically asks about those.
-5. If the question asks "how much" or duration: find the relevant numbers and compute.
-6. Base your answer ONLY on the provided information. When in doubt, err on the side of FEWER items (merge ambiguous entries).
+{"" if extracted_context else "Supporting memories:" + chr(10) + memory_context + chr(10)}{"Supporting memories (for context only — do NOT use these to add to the count above):" + chr(10) + memory_context + chr(10) if extracted_context else ""}
+RULES:
+{"- The PRE-EXTRACTED EVENTS list above is your starting point, but it may STILL contain duplicates. You MUST aggressively merge entries that could refer to the same real-world event." if extracted_context else "- Count only DISTINCT events. Merge duplicates aggressively."}
+- MERGE RULE: If two entries could POSSIBLY be the same person/event described differently (e.g., "sister's wedding" and "Rachel's wedding" could be the same if the sister is Rachel; "college roommate's wedding" and "Emily's wedding" if Emily is the roommate), count them as ONE.
+- MERGE RULE: Generic descriptions (e.g., "cousin's wedding") should be merged with specific ones (e.g., "Cousin Rachel's wedding at a vineyard") unless dates clearly differ.
+- ONGOING/RECURRING activities (e.g., "weekly classes") = ONE event type.
+- Only count events the user DIRECTLY attended/participated in.
+- When in doubt, ALWAYS MERGE. Undercounting > overcounting.
+- For amounts/durations: compute from explicit numbers only.
 
-REASONING:
-[List each DISTINCT item you're counting. For each, note the key identifying details (who, what, when) and which session(s) mention it. Explicitly note any entries you're MERGING as duplicates.]
-
-ANSWER:
-[Your final answer — be specific and concise]"""
+ANSWER: First list the TRULY DISTINCT events after merging, then give FINAL ANSWER: [number or brief fact]"""
 
 
 def build_standard_prompt(question, memories):
@@ -389,7 +553,10 @@ def run_question(question, strategy_name, strategy_config, answer_model="gemini-
 
     # Build prompt
     if search_type == "aggregate":
-        prompt = build_aggregate_prompt(question["question"], memories, event_clusters)
+        extracted_events = meta.get("extracted_events", [])
+        prompt = build_aggregate_prompt(
+            question["question"], memories, event_clusters, extracted_events
+        )
     else:
         prompt = build_standard_prompt(question["question"], memories)
 
@@ -406,6 +573,7 @@ def run_question(question, strategy_name, strategy_config, answer_model="gemini-
     judgment = judge_answer(question["question"], question["ground_truth"], answer)
     judge_ms = (time.time() - t2) * 1000
 
+    extracted_event_count = len(meta.get("extracted_events", []))
     return {
         "question_id": qid,
         "question": question["question"],
@@ -417,6 +585,7 @@ def run_question(question, strategy_name, strategy_config, answer_model="gemini-
         "search_type": search_type,
         "memory_count": len(memories),
         "cluster_count": len(event_clusters),
+        "extracted_event_count": extracted_event_count,
         "search_ms": round(search_ms, 1),
         "answer_ms": round(answer_ms, 1),
         "judge_ms": round(judge_ms, 1),
@@ -442,6 +611,7 @@ def run_benchmark(questions, strategy_name, strategy_config, answer_model="gemin
             print(f"    Judge: {result['judgment'].get('explanation', '')[:150]}")
         print(
             f"    Memories: {result['memory_count']}, Clusters: {result['cluster_count']}, "
+            f"Events: {result.get('extracted_event_count', '?')}, "
             f"Search: {result['search_ms']:.0f}ms, Answer: {result['answer_ms']:.0f}ms"
         )
         print()
@@ -470,21 +640,28 @@ def main():
     parser.add_argument("--sweep", action="store_true", help="Test all strategies")
     parser.add_argument("--top-k", type=int, default=None, help="Override top_k for search")
     parser.add_argument("--model", default="gemini-3-flash-preview", help="Answer model")
+    parser.add_argument(
+        "--limit", type=int, default=None, help="Max questions to run (for quick testing)"
+    )
     args = parser.parse_args()
 
-    print("Loading multi-session questions from checkpoint...")
-    questions = load_checkpoint_questions()
-    print(f"  {len(questions)} ingested multi-session questions found")
-
-    all_ms = load_all_multisession_questions()
+    print("Loading multi-session questions...")
+    questions, total_ms = load_testable_questions()
     print(
-        f"  ({len(all_ms)} total multi-session questions in dataset, {len(all_ms) - len(questions)} not yet ingested)"
+        f"  {len(questions)} testable (with ingested data), "
+        f"{total_ms - len(questions)} not yet ingested out of {total_ms} total"
     )
     print()
 
     if not questions:
-        print("ERROR: No multi-session questions found in checkpoint!")
+        print("ERROR: No testable multi-session questions found!")
+        print("  Ensure the eval DB has ingested session data.")
         return
+
+    if args.limit and args.limit < len(questions):
+        questions = questions[: args.limit]
+        print(f"  (limited to {args.limit} questions)")
+        print()
 
     strategies_to_test = list(STRATEGIES.keys()) if args.sweep else [args.strategy]
     all_results = {}
@@ -521,6 +698,7 @@ def main():
                     "correct": r["correct"],
                     "memory_count": r["memory_count"],
                     "cluster_count": r["cluster_count"],
+                    "extracted_event_count": r.get("extracted_event_count", 0),
                 }
                 for r in result["results"]
             ],
